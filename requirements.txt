@@ -1,0 +1,8 @@
+pandas
+numpy
+openpyxl
+matplotlib
+seaborn
+SQLAlchemy
+python-dotenv
+pytest
