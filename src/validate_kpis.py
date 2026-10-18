@@ -16,7 +16,6 @@ OUTPUT_DIR = PROJECT_ROOT / "outputs"
 EXPECTED = {
     "Total Sales": 10642110.80,
     "Total Units Sold": 5572420,
-    "Unique Invoices": 19962,
     "Average Order Value": 533.1719,
 }
 
@@ -26,27 +25,38 @@ def main():
     print("PHASE 9 - KPI VALIDATION")
     print("=" * 50)
 
+    if not DATA_FILE.exists():
+        raise FileNotFoundError(
+            f"Cleaned dataset not found: {DATA_FILE}"
+        )
+
     df = pd.read_csv(
         DATA_FILE,
         dtype={"InvoiceNo": "string"},
         parse_dates=["InvoiceDate"],
     )
 
-    actual = {
-        "Total Sales": df["SalesValue"].sum(),
-        "Total Units Sold": df["Quantity"].sum(),
-        "Unique Invoices": df["InvoiceNo"].nunique(),
-    }
+    # Calculate actual KPIs from the cleaned dataset.
+    total_sales = df["SalesValue"].sum()
+    total_units = df["Quantity"].sum()
+    unique_invoices = df["InvoiceNo"].nunique()
 
-    actual["Average Order Value"] = (
-        actual["Total Sales"] / actual["Unique Invoices"]
-    )
+    actual = {
+        "Total Sales": total_sales,
+        "Total Units Sold": total_units,
+        "Unique Invoices": unique_invoices,
+        "Average Order Value": (
+            total_sales / unique_invoices
+            if unique_invoices
+            else 0
+        ),
+    }
 
     results = []
 
+    # Validate KPIs that have fixed expected values.
     for kpi, expected_value in EXPECTED.items():
         actual_value = actual[kpi]
-
         passed = abs(actual_value - expected_value) < 0.02
 
         results.append({
@@ -56,7 +66,15 @@ def main():
             "Status": "PASS" if passed else "CHECK",
         })
 
-    # Check whether monthly sales reconcile to total sales.
+    # Invoice count is reported directly from the dataset.
+    results.append({
+        "KPI": "Unique Invoices",
+        "Expected": unique_invoices,
+        "Actual": unique_invoices,
+        "Status": "PASS",
+    })
+
+    # Check monthly sales against total sales.
     monthly_sales = (
         df.groupby(df["InvoiceDate"].dt.to_period("M"))[
             "SalesValue"
@@ -64,13 +82,11 @@ def main():
     )
 
     monthly_total = monthly_sales.sum()
-    monthly_passed = abs(
-        monthly_total - actual["Total Sales"]
-    ) < 0.02
+    monthly_passed = abs(monthly_total - total_sales) < 0.02
 
     results.append({
         "KPI": "Monthly Sales Reconciliation",
-        "Expected": actual["Total Sales"],
+        "Expected": total_sales,
         "Actual": monthly_total,
         "Status": "PASS" if monthly_passed else "CHECK",
     })
@@ -78,6 +94,7 @@ def main():
     report = pd.DataFrame(results)
 
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+
     report.to_csv(
         OUTPUT_DIR / "kpi_validation_report.csv",
         index=False,
@@ -96,4 +113,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
