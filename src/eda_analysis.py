@@ -19,7 +19,11 @@ def main():
     print("RETAIL SALES - EXPLORATORY DATA ANALYSIS")
     print("=" * 50)
 
-    df = pd.read_csv(DATA_FILE, parse_dates=["InvoiceDate"])
+    df = pd.read_csv(
+    DATA_FILE,
+    parse_dates=["InvoiceDate"],
+    dtype={"InvoiceNo": "string"}
+)
 
     # Overall sales metrics
     total_sales = df["SalesValue"].sum()
